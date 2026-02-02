@@ -424,6 +424,22 @@ impl<'a> fmt::Display for Unexpected<'a> {
     }
 }
 
+/// Provides a hint about what type of variant data to expect.
+///
+/// This is returned by [`VariantAccess::hint`] to allow deserializers to
+/// determine the variant type before consuming the `VariantAccess`.
+#[derive(Copy, Clone, PartialEq, Debug)]
+pub enum VariantHint {
+    /// The variant has no data (unit variant).
+    Unit,
+    /// The variant contains a single value (newtype variant).
+    Newtype,
+    /// The variant contains a tuple of values.
+    Tuple(usize),
+    /// The variant contains named fields.
+    Struct(&'static [&'static str]),
+}
+
 /// `Expected` represents an explanation of what data a `Visitor` was expecting
 /// to receive.
 ///
@@ -2277,6 +2293,18 @@ pub trait VariantAccess<'de>: Sized {
     ) -> Result<V::Value, Self::Error>
     where
         V: Visitor<'de>;
+
+    /// Returns a hint about the type of variant data, if available.
+    ///
+    /// This method allows deserializers to determine the variant type before
+    /// consuming the `VariantAccess`. The default implementation returns `None`.
+    ///
+    /// Data formats that know the variant type ahead of time should override
+    /// this method to return the appropriate hint.
+    #[inline]
+    fn hint(&self) -> Option<VariantHint> {
+        None
+    }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
