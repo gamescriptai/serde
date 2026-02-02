@@ -509,7 +509,7 @@ mod content {
 
             // Convert enum input into a map representation: {variant_name: variant_data}
             // This allows untagged and internally tagged enums to work with enum input
-            let (variant, variant_access) = tri!(visitor.variant::<Content>());
+            let (variant, variant_access) = tri!(visitor.variant_seed(ContentVisitor::new()));
 
             // Use hint() to determine the variant type, or default to trying newtype
             let variant_data = match variant_access.hint() {
