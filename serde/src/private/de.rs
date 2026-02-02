@@ -501,13 +501,44 @@ mod content {
             Ok(Content::Map(vec))
         }
 
-        fn visit_enum<V>(self, _visitor: V) -> Result<Self::Value, V::Error>
+        fn visit_enum<V>(self, visitor: V) -> Result<Self::Value, V::Error>
         where
             V: EnumAccess<'de>,
         {
-            Err(de::Error::custom(
-                "untagged and internally tagged enums do not support enum input",
-            ))
+            use crate::de::{VariantAccess, VariantHint};
+
+            // Convert enum input into a map representation: {variant_name: variant_data}
+            // This allows untagged and internally tagged enums to work with enum input
+            let (variant, variant_access) = tri!(visitor.variant::<Content>());
+
+            // Use hint() to determine the variant type, or default to trying newtype
+            let variant_data = match variant_access.hint() {
+                Some(VariantHint::Unit) => {
+                    tri!(variant_access.unit_variant());
+                    Content::Unit
+                }
+                Some(VariantHint::Newtype) => {
+                    tri!(variant_access.newtype_variant_seed(ContentVisitor::new()))
+                }
+                Some(VariantHint::Tuple(len)) => {
+                    // tuple_variant expects a Visitor that can handle sequences
+                    tri!(variant_access.tuple_variant(len, ContentVisitor::new()))
+                }
+                Some(VariantHint::Struct(fields)) => {
+                    // struct_variant expects a Visitor that can handle maps
+                    tri!(variant_access.struct_variant(fields, ContentVisitor::new()))
+                }
+                None => {
+                    // No hint available - try newtype which handles most cases
+                    match variant_access.newtype_variant_seed(ContentVisitor::new()) {
+                        Ok(content) => content,
+                        Err(_) => Content::Unit,
+                    }
+                }
+            };
+
+            // Represent as a single-entry map: {variant_name: variant_data}
+            Ok(Content::Map(vec![(variant, variant_data)]))
         }
     }
 
