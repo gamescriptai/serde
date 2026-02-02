@@ -424,6 +424,23 @@ impl<'a> fmt::Display for Unexpected<'a> {
     }
 }
 
+/// Hint about which variant type to expect when deserializing an enum.
+///
+/// This is used by `VariantAccess::hint()` to indicate to the deserializer
+/// what kind of variant data is expected, enabling proper handling of
+/// untagged and internally tagged enums.
+#[derive(Copy, Clone, PartialEq, Debug)]
+pub enum VariantHint {
+    /// Expecting a unit variant (no associated data).
+    Unit,
+    /// Expecting a newtype variant (single value).
+    Newtype,
+    /// Expecting a tuple variant with the given number of elements.
+    Tuple(usize),
+    /// Expecting a struct variant with the given field names.
+    Struct(&'static [&'static str]),
+}
+
 /// `Expected` represents an explanation of what data a `Visitor` was expecting
 /// to receive.
 ///
@@ -2277,6 +2294,20 @@ pub trait VariantAccess<'de>: Sized {
     ) -> Result<V::Value, Self::Error>
     where
         V: Visitor<'de>;
+
+    /// Returns a hint about which variant type to expect.
+    ///
+    /// This method allows deserializers to determine the expected variant type
+    /// before consuming the `VariantAccess`, which is essential for properly
+    /// handling untagged and internally tagged enums.
+    ///
+    /// The default implementation returns `None`, indicating no hint is available.
+    /// Implementations that know the expected variant type should override this
+    /// method to return the appropriate `VariantHint`.
+    #[inline]
+    fn hint(&self) -> Option<VariantHint> {
+        None
+    }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
